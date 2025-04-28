@@ -20,7 +20,6 @@ Question: if the number of threads and range_count was random, would your progra
 from datetime import datetime, timedelta
 import threading
 import random
-import math
 
 # Include cse 351 common Python files
 from cse351 import *
@@ -29,13 +28,18 @@ from cse351 import *
 prime_count = 0
 numbers_processed = 0 
 
-def for_loop(start, range_count):
+def for_loop(start, range_count, prime_lock, num_lock):
     global prime_count
     global numbers_processed 
     for i in range(start, start + range_count):
-        numbers_processed += 1
+        num_lock.acquire()
+        try:
+            numbers_processed += 1
+        finally:
+            num_lock.release()
         if is_prime(i):
-            prime_count += 1
+            with prime_lock:
+                prime_count += 1
             print(i, end=', ', flush=True)
 
 def is_prime(n):
@@ -63,55 +67,39 @@ def main():
     log.start_timer()
 
     start = 10000000000
-    range_count = random.randint(100000, 1000000)
+    range_count = 100000
     numbers_processed = 0
+    num_threads = 7
 
-    range_count_in_10 = range_count/10
+    prime_lock = threading.Lock()
 
-    range_count_in_10 = math.floor(range_count_in_10)
+    numbers_lock = threading.Lock()
 
-    range_count_in_10_last = range_count_in_10 + range_count % 10
+    threads = []
 
-    one = threading.Thread(target=for_loop, args=(start, range_count_in_10))
-    start += range_count_in_10
-    two = threading.Thread(target=for_loop, args=(start, range_count_in_10))
-    start += range_count_in_10
-    three = threading.Thread(target=for_loop, args=(start, range_count_in_10))
-    start += range_count_in_10
-    four = threading.Thread(target=for_loop, args=(start, range_count_in_10))
-    start += range_count_in_10
-    five = threading.Thread(target=for_loop, args=(start, range_count_in_10))
-    start += range_count_in_10
-    six = threading.Thread(target=for_loop, args=(start, range_count_in_10))
-    start += range_count_in_10
-    seven = threading.Thread(target=for_loop, args=(start, range_count_in_10))
-    start += range_count_in_10
-    eight = threading.Thread(target=for_loop, args=(start, range_count_in_10))
-    start += range_count_in_10
-    nine = threading.Thread(target=for_loop, args=(start, range_count_in_10))
-    start += range_count_in_10
-    ten = threading.Thread(target=for_loop, args=(start, range_count_in_10_last))
-    one.start()
-    two.start()
-    three.start()
-    four.start()
-    five.start()
-    six.start()
-    seven.start()
-    eight.start()
-    nine.start()
-    ten.start()
-    one.join()
-    two.join()
-    three.join()
-    four.join()
-    five.join()
-    six.join()
-    seven.join()
-    eight.join()
-    nine.join()
-    ten.join()
+    range_count_in_10_mod =  range_count % num_threads
+
+    range_count_in_10 = int((range_count - range_count_in_10_mod) / num_threads)
+
+    range_count_in_10_last = range_count_in_10 + range_count_in_10_mod
+
+    for i in range(1, num_threads + 1):
+        if i == num_threads:
+            t = threading.Thread(target=for_loop, args=(start, range_count_in_10_last, prime_lock, numbers_lock))
+        else:
+            t = threading.Thread(target=for_loop, args=(start, range_count_in_10, prime_lock, numbers_lock))
+        start += range_count_in_10
+        threads.append(t)
+
+    for t in threads:
+        t.start()
+
+    for t in threads:
+        t.join()
+
     print(flush=True)
+    print(range_count)
+    print(num_threads)
 
     # Should find 4306 primes
     log.write(f'Numbers processed = {numbers_processed}')

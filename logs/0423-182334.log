@@ -1,0 +1,6 @@
+18:23:48| 
+18:23:48| range_count = 100000
+18:23:48| number_threads = 10
+18:23:48| Numbers processed = 100000
+18:23:48| Primes found = 4306
+18:23:48| Total time = 14.32500990
