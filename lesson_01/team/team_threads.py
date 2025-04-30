@@ -28,19 +28,27 @@ from cse351 import *
 prime_count = 0
 numbers_processed = 0 
 
-def for_loop(start, range_count, prime_lock, num_lock):
-    global prime_count
-    global numbers_processed 
-    for i in range(start, start + range_count):
-        num_lock.acquire()
-        try:
-            numbers_processed += 1
-        finally:
-            num_lock.release()
-        if is_prime(i):
-            with prime_lock:
-                prime_count += 1
-            print(i, end=', ', flush=True)
+class primeThread(threading.Thread):
+    def __init__(self, starter, range_count, num_lock):
+        super().__init__()
+        self.num_primes = 0
+        self.range_count = range_count
+        self.num_lock = num_lock
+        self.starter = starter
+
+    def run(self): 
+        for i in range(self.starter, self.starter + self.range_count):
+            self.num_lock.acquire()
+            try:
+                numbers_processed += 1
+            finally:
+                self.num_lock.release()
+            if is_prime(i):
+                with self.prime_lock:
+                    num_primes += 1
+                print(i, end=', ', flush=True)
+
+
 
 def is_prime(n):
     """
@@ -66,10 +74,10 @@ def main():
     log = Log(show_terminal=True)
     log.start_timer()
 
-    start = 10000000000
+    start = 10_000_000_000
     range_count = 100000
     numbers_processed = 0
-    num_threads = 7
+    num_threads = 8
 
     prime_lock = threading.Lock()
 
@@ -84,7 +92,7 @@ def main():
     range_count_in_10_last = range_count_in_10 + range_count_in_10_mod
 
     for i in range(1, num_threads + 1):
-        if i == num_threads:
+        if i == num_threads - 1:
             t = threading.Thread(target=for_loop, args=(start, range_count_in_10_last, prime_lock, numbers_lock))
         else:
             t = threading.Thread(target=for_loop, args=(start, range_count_in_10, prime_lock, numbers_lock))
