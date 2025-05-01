@@ -2,7 +2,7 @@
 Course: CSE 351 
 Lesson: L02 team activity
 File:   prove.py
-Author: <Add name here>
+Author: Austin Virgin
 
 Purpose: Retrieve Star Wars details from a server
 
