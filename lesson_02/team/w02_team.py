@@ -74,3 +74,11 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+class GetName(threading.Thread):
+    def __init__(self, item):
+        super().__init__()
+        self.item = item
+
+    def run(self):
+        global call_count
