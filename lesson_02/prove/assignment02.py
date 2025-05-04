@@ -5,6 +5,12 @@ Student   : Austin Virgin
 
 Instructions:
     - review instructions in the course
+
+Justification: I believe that my program is in the 4. category I was able to meet
+all of the requirements. I implemented all of the classes, I processed all of the
+threads and they all ran at the same time, my program matched the account balances,
+and I ran the program at least 5 times to make sure it works. I also made locks to
+make sure data would not be lost.
 """
 
 # Don't import any other packages for this assignment
