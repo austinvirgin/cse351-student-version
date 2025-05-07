@@ -101,19 +101,22 @@ class Account():
 class Bank():
     def __init__(self):
         self.accounts = {}
+        self.accounts_lock = threading.Lock()
     
     def deposit(self, account, amount):
         if account not in self.accounts:
-            self.accounts[account] = Account()
-            self.accounts[account].deposit(amount)
+            with self.accounts_lock:
+                self.accounts[account] = Account()
+                self.accounts[account].deposit(amount)
     
         else:
             self.accounts[account].deposit(amount)
 
     def withdraw(self, account, amount):
         if account not in self.accounts:
-            self.accounts[account] = Account()
-            self.accounts[account].withdraw(amount)
+            with self.accounts_lock:
+                self.accounts[account] = Account()
+                self.accounts[account].withdraw(amount)
         
         else:
             self.accounts[account].withdraw(amount)
