@@ -63,7 +63,7 @@ class ATM_Reader(threading.Thread):
        with open(self.file, 'r') as reading:
            for line in reading:
                if line and line[0] != "#":
-                    todo = line.split(",")
+                    todo = line.strip().split(",")
                     account_num = int(todo[0])
                     type = todo[1]
                     amount = todo[2]
@@ -211,4 +211,3 @@ def test_balances(bank):
 
 if __name__ == "__main__":
     main()
-
