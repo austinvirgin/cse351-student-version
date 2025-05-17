@@ -1,7 +1,7 @@
 """
 Course    : CSE 351
 Assignment: 04
-Student   : <your name here>
+Student   : Austin Virgin
 
 Instructions:
     - review instructions in the course
@@ -22,7 +22,11 @@ from common import *
 
 from cse351 import *
 
-THREADS = 0                 # TODO - set for your program
+import threading
+
+import queue
+
+THREADS = 10                 # TODO - set for your program
 WORKERS = 10
 RECORDS_TO_RETRIEVE = 5000  # Don't change
 
@@ -35,6 +39,10 @@ def retrieve_weather_data():
 
 # ---------------------------------------------------------------------------
 # TODO - Create Worker threaded class
+class Worker_class(threading.Thread):
+    def __init__(self):
+        super().__init__(self)
+
 
 
 # ---------------------------------------------------------------------------
@@ -104,9 +112,19 @@ def main():
     records = RECORDS_TO_RETRIEVE
 
     # TODO - Create any queues, pipes, locks, barriers you need
+    main_queue = queue.Queue()
+    thread_queue = queue.Queue()
+    main_queue_semaphore = threading.Semaphore(THREADS)
 
+    for record_num in range(records):
+        for city in city_details:
+            save_record_to_queue(city, record_num, main_queue, main_queue_semaphore)
 
+    for _ in range(THREADS):
+        main_queue_semaphore.acquire()
+        main_queue.put(None)
 
+    print(main_queue.qsize())
 
     # End server - don't change below
     data = get_data_from_server(f'{TOP_API_URL}/end')
@@ -116,6 +134,10 @@ def main():
 
     log.stop_timer('Run time: ')
 
+
+def save_record_to_queue(place, num, main_queue, semaphore):
+    semaphore.acquire()
+    main_queue.put((place, num))
 
 if __name__ == '__main__':
     main()
