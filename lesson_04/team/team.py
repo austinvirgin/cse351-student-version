@@ -56,12 +56,15 @@ class Queue351():
         return len(self.__items) + extra
 
 # ---------------------------------------------------------------------------
-def producer():
+def producer(que, producer, max_size):
     for i in range(PRIME_COUNT):
         number = random.randint(1, 1_000_000_000_000)
-        # TODO - place on queue for workers
-
+        with max_size:
+            que.put(number)
+        
     # TODO - select one producer to send the "All Done" message
+        with producer:
+            que.put("All Done")
 
 # ---------------------------------------------------------------------------
 def consumer():
@@ -77,8 +80,14 @@ def main():
 
     que = Queue351()
 
+    producer = threading.Semaphore(PRODUCERS)
+    max_size = threading.Semaphore(MAX_QUEUE_SIZE)
+
     # TODO - create semaphores for the queue (see Queue351 class)
 
+    for i in range(PRODUCERS):
+        threading.Thread(target=producer, args=(que, producer, max_size)).start()
+        
     # TODO - create barrier
 
     # TODO - create producers threads (see PRODUCERS value)
