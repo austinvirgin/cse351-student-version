@@ -120,7 +120,7 @@ def main():
         for city in city_details:
             save_record_to_queue(city, record_num, main_queue, main_queue_semaphore)
 
-    for _ in range(THREADS):
+    for _git  in range(THREADS):
         main_queue_semaphore.acquire()
         main_queue.put(None)
 
