@@ -8,7 +8,7 @@ Instructions:
 
 In order to retrieve a weather record from the server, Use the URL:
 
-f'{TOP_API_URL}/record/{name}/{recno}
+f'{TOP_API_URL}/record/{name}/{recno}'
 
 where:
 
@@ -26,22 +26,68 @@ import threading
 
 import queue
 
-THREADS = 10                 # TODO - set for your program
-WORKERS = 10
+THREADS = 100                 # TODO - set for your program
+WORKERS = 100
 RECORDS_TO_RETRIEVE = 5000  # Don't change
 
 
 # ---------------------------------------------------------------------------
-def retrieve_weather_data():
-    # TODO - fill out this thread function (and arguments)
-    ...
+def retrieve_weather_data(id, m_q, t_q, m_q_semaphore, t_q_semaphore, thread_barrier, t_q_r, m_q_r):
+
+    m_q_r.acquire()
+    city = m_q.get()
+    q_info(city, t_q)
+    m_q_semaphore.release()
+    t_q_r.release()
+
+    thread_barrier.wait()
+
+    while True:
+        m_q_r.acquire()
+        t_q_semaphore.acquire()
+        city = m_q.get()
+        if city is None:
+            break
+
+        q_info(city, t_q)
+        m_q_semaphore.release()
+        t_q_r.release()
+
+    thread_barrier.wait()
+    if id == 0:
+        for _ in range(WORKERS):
+            t_q.put(None)
+            t_q_r.release()
+    print(t_q.qsize())
+
+def q_info(city,t_q):
+    name = city[0]
+    recno = city[1]
+    q = get_data_from_server(f'{TOP_API_URL}/record/{name}/{recno}')
+    t_q.put(q)
 
 
 # ---------------------------------------------------------------------------
 # TODO - Create Worker threaded class
 class Worker_class(threading.Thread):
-    def __init__(self):
-        super().__init__(self)
+    def __init__(self, t_q_r, t_q_s, t_q, noaa):
+        super().__init__()
+        self.tqr = t_q_r
+        self.tqs = t_q_s
+        self.tq = t_q
+        self.noaa = noaa
+
+    def run(self):
+        while True:
+            self.tqr.acquire()
+            city = self.tq.get()
+            if city is None:
+                break
+            self.store_data(city)
+
+    def store_data(self, city):
+       self.noaa.add_city(city)
+       self.tqs.release()
 
 
 
@@ -50,10 +96,24 @@ class Worker_class(threading.Thread):
 class NOAA:
 
     def __init__(self):
-        ...
+        self.cities = {}
+        self.new_dict = threading.Lock()
+        self.add = threading.Lock()
+
+    def add_city(self, city):
+        city_name = city['city']
+        city_temp = city['temp']
+
+        if city_name not in self.cities:
+            with self.new_dict:
+                if city_name not in self.cities:
+                    self.cities[city_name] = {"amount": 0, "temp": 0}
+        with self.add:
+            self.cities[city_name]['amount'] += 1
+            self.cities[city_name]['temp'] += city_temp
 
     def get_temp_details(self, city):
-        return 0.0
+        return self.cities[city]['temp']/self.cities[city]['amount']
 
 
 # ---------------------------------------------------------------------------
@@ -113,16 +173,36 @@ def main():
 
     # TODO - Create any queues, pipes, locks, barriers you need
     main_queue = queue.Queue()
+    main_queue_ready = threading.Semaphore(0)
+    thread_queue_ready = threading.Semaphore(0)
     thread_queue = queue.Queue()
     main_queue_semaphore = threading.Semaphore(THREADS)
+    thread_queue_semaphore = threading.Semaphore(WORKERS)
+    thread_barrier = threading.Barrier(THREADS)
+
+    retrievers = []
+    for i in range(THREADS):
+        r = threading.Thread(target=retrieve_weather_data, args=(i, main_queue, thread_queue, main_queue_semaphore, thread_queue_semaphore, thread_barrier, thread_queue_ready, main_queue_ready))
+        r.start()
+        retrievers.append(r)
+
+    workers = []
+    for _ in range(WORKERS):
+        w = Worker_class(thread_queue_ready, thread_queue_semaphore, thread_queue, noaa)
+        w.start()
+        workers.append(w)
 
     for record_num in range(records):
         for city in city_details:
-            save_record_to_queue(city, record_num, main_queue, main_queue_semaphore)
+            save_record_to_queue(city, record_num, main_queue, main_queue_semaphore, main_queue_ready)
 
-    for _git  in range(THREADS):
+    for i  in range(THREADS):
         main_queue_semaphore.acquire()
         main_queue.put(None)
+        main_queue_ready.release()
+
+    for thread in retrievers + workers:
+        thread.join()
 
     print(main_queue.qsize())
 
@@ -135,9 +215,10 @@ def main():
     log.stop_timer('Run time: ')
 
 
-def save_record_to_queue(place, num, main_queue, semaphore):
+def save_record_to_queue(place, num, main_queue, semaphore, main_queue_ready):
     semaphore.acquire()
     main_queue.put((place, num))
+    main_queue_ready.release()
 
 if __name__ == '__main__':
     main()
